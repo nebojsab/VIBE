@@ -3,7 +3,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { NotificationsSettings } from "./NotificationsSettings";
+import { NotificationsSettings } from "@/components/settings/NotificationsSettings";
 
 export function SettingsShell() {
     return (
