@@ -1,23 +1,41 @@
-import { Button } from "./components/Button";
+"use client";
+
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 
 export default function Home() {
   return (
-    <section className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-5xl flex-col justify-center px-4 py-10">
-      <div className="w-full max-w-xl rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 shadow">
-        <h1 className="text-3xl font-semibold tracking-tight">VIBE</h1>
-        <p className="mt-2 text-zinc-300">
-          Next.js + TypeScript + Tailwind is live.
-        </p>
-
-        <div className="mt-6 flex gap-3">
-          <Button variant="primary">
-            Primary action
-          </Button>
-          <Button variant="secondary" className="text-zinc-100">
-            Secondary
-          </Button>
-        </div>
-      </div>
+    <section className="mx-auto flex min-h-[calc(100vh-7rem)] max-w-2xl flex-col justify-center px-4 py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle>TEST 123 – VIBE</CardTitle>
+          <CardDescription>
+            A clean base layout powered by Next.js, Tailwind CSS, and shadcn/ui.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label className="text-sm font-medium" htmlFor="email">
+            Join the waitlist
+          </label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="you@example.com"
+            className="w-full"
+          />
+        </CardContent>
+        <CardFooter className="flex justify-end">
+          <Button>Get notified</Button>
+        </CardFooter>
+      </Card>
     </section>
   );
 }
