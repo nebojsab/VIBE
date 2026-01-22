@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, MessageSquare, User } from "lucide-react";
+import { Bell, MessageSquare, User, Search } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -10,17 +10,30 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function Header() {
   return (
-    <header className="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
-        <span className="text-lg font-semibold tracking-tight">VIBE</span>
-        <nav className="flex items-center gap-4 text-sm text-zinc-300">
+    <header className="border-b border-gray-200 bg-white h-16 flex items-center">
+      <div className="flex-1 flex items-center justify-between px-6">
+        {/* Search Bar on Left */}
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="search"
+              placeholder="Search"
+              className="pl-10 w-full bg-gray-50 border-gray-200 focus-visible:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Right Side: Notifications, Messages, User Menu */}
+        <nav className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-300 hover:text-white"
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             aria-label="Notifications"
           >
             <Bell className="h-5 w-5" />
@@ -28,27 +41,22 @@ export function Header() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-zinc-300 hover:text-white"
+            className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
             aria-label="In-app messages"
           >
             <MessageSquare className="h-5 w-5" />
           </Button>
-          <div className="h-6 w-px bg-zinc-800" />
-          <a href="#" className="hover:text-white transition-colors">
-            Home
-          </a>
-          <a href="#" className="hover:text-white transition-colors">
-            Docs
-          </a>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-zinc-300 hover:text-white"
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full"
                 aria-label="User menu"
               >
-                <User className="h-5 w-5" />
+                <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                  <User className="h-5 w-5 text-gray-600" />
+                </div>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
