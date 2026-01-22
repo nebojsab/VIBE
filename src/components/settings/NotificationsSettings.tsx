@@ -303,11 +303,38 @@ export function NotificationsSettings() {
                     {category.description}
                   </p>
                 </div>
-                <AccordionPrimitive.Trigger
-                  className="ml-3 flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:rotate-180"
-                >
-                  <ChevronDownIcon className="size-4" />
-                </AccordionPrimitive.Trigger>
+                <div className="flex items-center gap-2 ml-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="cursor-pointer text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleReset();
+                      }}
+                    >
+                      Reset to defaults
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSave();
+                      }}
+                    >
+                      Save changes
+                    </Button>
+                  </div>
+                  <AccordionPrimitive.Trigger
+                    className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:rotate-180"
+                  >
+                    <ChevronDownIcon className="size-4" />
+                  </AccordionPrimitive.Trigger>
+                </div>
               </AccordionPrimitive.Header>
               <AccordionContent>
                 <div className="space-y-4 px-6">
@@ -376,25 +403,6 @@ export function NotificationsSettings() {
                         </label>
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-border pt-4">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="cursor-pointer text-xs"
-                      onClick={handleReset}
-                    >
-                      Reset to defaults
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="cursor-pointer"
-                      onClick={handleSave}
-                    >
-                      Save changes
-                    </Button>
                   </div>
                 </div>
               </AccordionContent>
