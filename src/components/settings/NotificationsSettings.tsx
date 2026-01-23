@@ -157,7 +157,68 @@ export function NotificationsSettings() {
   const [state, setState] = useState<NotificationState>(
     () => structuredClone(DEFAULT_NOTIFICATION_STATE) as NotificationState,
   );
+  const [savedState, setSavedState] = useState<NotificationState>(
+    () => structuredClone(DEFAULT_NOTIFICATION_STATE) as NotificationState,
+  );
   const { showToast } = useToast();
+
+  // Check if a category has changes compared to saved state
+  const hasChanges = (categoryId: NotificationCategoryKey): boolean => {
+    const current = state[categoryId];
+    const saved = savedState[categoryId];
+
+    // Compare enabled
+    if (current.enabled !== saved.enabled) return true;
+
+    // Compare delivery
+    if (current.delivery !== saved.delivery) return true;
+
+    // Compare channels
+    if (
+      current.channels.email !== saved.channels.email ||
+      current.channels.inApp !== saved.channels.inApp
+    ) {
+      return true;
+    }
+
+    // Compare events
+    for (const eventId of Object.keys(current.events)) {
+      if (current.events[eventId] !== saved.events[eventId]) {
+        return true;
+      }
+    }
+
+    return false;
+  };
+
+  // Check if a category is at default state
+  const isAtDefaults = (categoryId: NotificationCategoryKey): boolean => {
+    const current = state[categoryId];
+    const defaults = DEFAULT_NOTIFICATION_STATE[categoryId];
+
+    // Compare enabled
+    if (current.enabled !== defaults.enabled) return false;
+
+    // Compare delivery
+    if (current.delivery !== defaults.delivery) return false;
+
+    // Compare channels
+    if (
+      current.channels.email !== defaults.channels.email ||
+      current.channels.inApp !== defaults.channels.inApp
+    ) {
+      return false;
+    }
+
+    // Compare events
+    for (const eventId of Object.keys(current.events)) {
+      if (current.events[eventId] !== defaults.events[eventId]) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const handleToggleCategory = (id: NotificationCategoryKey, value: boolean) => {
     setState((prev) => ({
@@ -216,7 +277,12 @@ export function NotificationsSettings() {
     }));
   };
 
-  const handleSave = () => {
+  const handleSave = (categoryId: NotificationCategoryKey) => {
+    // Save the current state as the new saved state for this category
+    setSavedState((prev) => ({
+      ...prev,
+      [categoryId]: structuredClone(state[categoryId]),
+    }));
     showToast({
       title: "Notification preferences saved",
       description: "Your changes have been applied for this workspace.",
@@ -224,10 +290,17 @@ export function NotificationsSettings() {
     });
   };
 
-  const handleReset = () => {
-    setState(
-      () => structuredClone(DEFAULT_NOTIFICATION_STATE) as NotificationState,
-    );
+  const handleReset = (categoryId: NotificationCategoryKey) => {
+    // Reset this category to default state
+    setState((prev) => ({
+      ...prev,
+      [categoryId]: structuredClone(DEFAULT_NOTIFICATION_STATE[categoryId]),
+    }));
+    // Also update saved state to defaults
+    setSavedState((prev) => ({
+      ...prev,
+      [categoryId]: structuredClone(DEFAULT_NOTIFICATION_STATE[categoryId]),
+    }));
     showToast({
       title: "Defaults restored",
       description:
@@ -310,9 +383,10 @@ export function NotificationsSettings() {
                       variant="ghost"
                       size="sm"
                       className="cursor-pointer text-xs"
+                      disabled={isAtDefaults(category.id)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleReset();
+                        handleReset(category.id);
                       }}
                     >
                       Reset to defaults
@@ -321,9 +395,10 @@ export function NotificationsSettings() {
                       type="button"
                       size="sm"
                       className="cursor-pointer"
+                      disabled={!hasChanges(category.id)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleSave();
+                        handleSave(category.id);
                       }}
                     >
                       Save changes
