@@ -2,15 +2,10 @@
 
 import { useState } from "react";
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
-import { ChevronDownIcon } from "lucide-react";
+import { ChevronDownIcon, Check, RotateCcw } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-} from "@/components/ui/accordion";
-import { Switch } from "@/components/ui/switch";
+import { Accordion, AccordionContent, AccordionItem } from "@/components/ui/accordion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import {
@@ -268,16 +263,6 @@ export function NotificationsSettings() {
     return true;
   };
 
-  const handleToggleCategory = (id: NotificationCategoryKey, value: boolean) => {
-    setState((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        enabled: value,
-      },
-    }));
-  };
-
   const handleChangeDelivery = (
     id: NotificationCategoryKey,
     value: DeliveryOption,
@@ -296,19 +281,27 @@ export function NotificationsSettings() {
     eventId: string,
     value: boolean,
   ) => {
-    setState((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        events: {
-          ...prev[id].events,
-          [eventId]: {
-            ...prev[id].events[eventId],
-            enabled: value,
-          },
+    setState((prev) => {
+      const category = prev[id];
+      const newEvents = {
+        ...category.events,
+        [eventId]: {
+          ...category.events[eventId],
+          enabled: value,
         },
-      },
-    }));
+      };
+
+      const anyEnabled = Object.values(newEvents).some((event) => event.enabled);
+
+      return {
+        ...prev,
+        [id]: {
+          ...category,
+          enabled: anyEnabled,
+          events: newEvents,
+        },
+      };
+    });
   };
 
   const handleToggleEventChannel = (
@@ -333,6 +326,86 @@ export function NotificationsSettings() {
         },
       },
     }));
+  };
+
+  const handleToggleAllEvents = (
+    id: NotificationCategoryKey,
+    value: boolean,
+  ) => {
+    setState((prev) => {
+      const category = prev[id];
+      const newEvents: NotificationCategory["events"] = {};
+
+      for (const [eventId, event] of Object.entries(category.events)) {
+        newEvents[eventId] = {
+          ...event,
+          enabled: value,
+        };
+      }
+
+      return {
+        ...prev,
+        [id]: {
+          ...category,
+          enabled: value,
+          events: newEvents,
+        },
+      };
+    });
+  };
+
+  const areAllEventsEnabled = (id: NotificationCategoryKey): boolean => {
+    const category = state[id];
+    if (!category.enabled) return false;
+    return Object.values(category.events).every((event) => event.enabled);
+  };
+
+  const areSomeEventsEnabled = (id: NotificationCategoryKey): boolean => {
+    return Object.values(state[id].events).some((event) => event.enabled);
+  };
+
+  const handleToggleAllChannels = (
+    id: NotificationCategoryKey,
+    channel: Channel,
+    value: boolean,
+  ) => {
+    setState((prev) => {
+      const newEvents = { ...prev[id].events };
+      Object.keys(newEvents).forEach((eventId) => {
+        newEvents[eventId] = {
+          ...newEvents[eventId],
+          channels: {
+            ...newEvents[eventId].channels,
+            [channel]: value,
+          },
+        };
+      });
+      return {
+        ...prev,
+        [id]: {
+          ...prev[id],
+          events: newEvents,
+        },
+      };
+    });
+  };
+
+  const areAllChannelsEnabled = (
+    id: NotificationCategoryKey,
+    channel: Channel,
+  ): boolean => {
+    return Object.values(state[id].events).every(
+      (event) => event.enabled && event.channels[channel],
+    );
+  };
+
+  const areSomeChannelsEnabled = (
+    id: NotificationCategoryKey,
+    channel: Channel,
+  ): boolean => {
+    return Object.values(state[id].events).some(
+      (event) => event.enabled && event.channels[channel],
+    );
   };
 
   const handleSave = (categoryId: NotificationCategoryKey) => {
@@ -385,21 +458,197 @@ export function NotificationsSettings() {
         >
           {Object.values(state).map((category) => (
             <AccordionItem key={category.id} value={category.id}>
-              <AccordionPrimitive.Header className="flex items-stretch px-6 py-4">
-                <div className="flex flex-1 flex-col gap-2 text-left">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-sm font-medium">
-                      {category.label}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Switch
-                        checked={category.enabled}
+              <AccordionPrimitive.Header className="flex items-center justify-between gap-4 px-6 py-4">
+                <div className="flex min-w-0 flex-col gap-1 text-left">
+                  <span className="text-sm font-medium truncate">
+                    {category.label}
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    {category.description}
+                  </p>
+                </div>
+                <AccordionPrimitive.Trigger
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:rotate-180"
+                >
+                  <ChevronDownIcon className="size-4" />
+                </AccordionPrimitive.Trigger>
+              </AccordionPrimitive.Header>
+              <AccordionContent>
+                <div className="space-y-4 px-6 py-4">
+                  {/* Header row: Events + Channels master controls */}
+                  <div className="grid items-center gap-4 border-b border-border pb-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)]">
+                    {/* Events Header */}
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={areAllEventsEnabled(category.id)}
                         onCheckedChange={(checked) =>
-                          handleToggleCategory(category.id, !!checked)
+                          handleToggleAllEvents(category.id, !!checked)
+                        }
+                        aria-checked={
+                          areSomeEventsEnabled(category.id) &&
+                          !areAllEventsEnabled(category.id)
+                            ? "mixed"
+                            : undefined
                         }
                       />
-                      <span>{category.enabled ? "Enabled" : "Disabled"}</span>
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                        Events
+                      </span>
                     </div>
+                    {/* Channels Header */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
+                        Channels
+                      </span>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={areAllChannelsEnabled(category.id, "email")}
+                            disabled={!category.enabled}
+                            onCheckedChange={(checked) =>
+                              handleToggleAllChannels(
+                                category.id,
+                                "email",
+                                !!checked,
+                              )
+                            }
+                          />
+                          <span>Email</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={areAllChannelsEnabled(category.id, "inApp")}
+                            disabled={!category.enabled}
+                            onCheckedChange={(checked) =>
+                              handleToggleAllChannels(
+                                category.id,
+                                "inApp",
+                                !!checked,
+                              )
+                            }
+                          />
+                          <span>In-app</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <Checkbox
+                            checked={areAllChannelsEnabled(category.id, "sms")}
+                            disabled={!category.enabled}
+                            onCheckedChange={(checked) =>
+                              handleToggleAllChannels(
+                                category.id,
+                                "sms",
+                                !!checked,
+                              )
+                            }
+                          />
+                          <span>Text (SMS)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Events and Channels Grid */}
+                  <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)]">
+                    {/* Events Column */}
+                    <div className="space-y-2">
+                      <div className="space-y-2">
+                        {category.eventDefinitions.map((event) => {
+                          const eventConfig = category.events[event.id];
+                          return (
+                            <label
+                              key={event.id}
+                              className="flex items-start gap-3 text-sm"
+                            >
+                              <Checkbox
+                                checked={eventConfig.enabled}
+                                disabled={!category.enabled}
+                                onCheckedChange={(checked) =>
+                                  handleToggleEvent(
+                                    category.id,
+                                    event.id,
+                                    !!checked,
+                                  )
+                                }
+                              />
+                              <span className="text-foreground">
+                                {event.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Channels Columns */}
+                    <div className="space-y-2">
+                      <div className="space-y-2">
+                        {category.eventDefinitions.map((event) => {
+                          const eventConfig = category.events[event.id];
+                          return (
+                            <div
+                              key={event.id}
+                              className="min-h-[20px] text-sm"
+                            >
+                              {eventConfig.enabled && category.enabled ? (
+                                <div className="grid grid-cols-3 gap-4">
+                                  <label className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={eventConfig.channels.email}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "email",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>Email</span>
+                                  </label>
+                                  <label className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={eventConfig.channels.inApp}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "inApp",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>In-app</span>
+                                  </label>
+                                  <label className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={eventConfig.channels.sms}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "sms",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>Text (SMS)</span>
+                                  </label>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer controls: Delivery + Reset + Save */}
+                  <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 md:flex-row md:items-center md:justify-between">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="whitespace-nowrap">Delivery</span>
                       <Select
@@ -429,132 +678,31 @@ export function NotificationsSettings() {
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {category.description}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 ml-3">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="cursor-pointer text-xs"
-                      disabled={isAtDefaults(category.id)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReset(category.id);
-                      }}
-                    >
-                      Reset to defaults
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="cursor-pointer"
-                      disabled={!hasChanges(category.id)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSave(category.id);
-                      }}
-                    >
-                      Save changes
-                    </Button>
-                  </div>
-                  <AccordionPrimitive.Trigger
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:rotate-180"
-                  >
-                    <ChevronDownIcon className="size-4" />
-                  </AccordionPrimitive.Trigger>
-                </div>
-              </AccordionPrimitive.Header>
-              <AccordionContent>
-                <div className="space-y-4 px-6">
-                  <div className="space-y-4">
-                    {category.eventDefinitions.map((event) => {
-                      const eventConfig = category.events[event.id];
-                      return (
-                        <div
-                          key={event.id}
-                          className="border-b border-border pb-4 last:border-b-0 last:pb-0"
-                        >
-                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <label className="flex items-start gap-3 text-sm">
-                              <Checkbox
-                                checked={eventConfig.enabled}
-                                disabled={!category.enabled}
-                                onCheckedChange={(checked) =>
-                                  handleToggleEvent(
-                                    category.id,
-                                    event.id,
-                                    !!checked,
-                                  )
-                                }
-                              />
-                              <span className="text-foreground font-medium">
-                                {event.label}
-                              </span>
-                            </label>
-
-                            {eventConfig.enabled && (
-                              <div className="md:ml-6">
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                  <span className="text-xs text-muted-foreground">
-                                    Channels:
-                                  </span>
-                                  <label className="flex items-center gap-2 whitespace-nowrap">
-                                    <Checkbox
-                                      checked={eventConfig.channels.email}
-                                      disabled={!category.enabled}
-                                      onCheckedChange={(checked) =>
-                                        handleToggleEventChannel(
-                                          category.id,
-                                          event.id,
-                                          "email",
-                                          !!checked,
-                                        )
-                                      }
-                                    />
-                                    <span>Email</span>
-                                  </label>
-                                  <label className="flex items-center gap-2 whitespace-nowrap">
-                                    <Checkbox
-                                      checked={eventConfig.channels.inApp}
-                                      disabled={!category.enabled}
-                                      onCheckedChange={(checked) =>
-                                        handleToggleEventChannel(
-                                          category.id,
-                                          event.id,
-                                          "inApp",
-                                          !!checked,
-                                        )
-                                      }
-                                    />
-                                    <span>In-app</span>
-                                  </label>
-                                  <label className="flex items-center gap-2 whitespace-nowrap">
-                                    <Checkbox
-                                      checked={eventConfig.channels.sms}
-                                      disabled={!category.enabled}
-                                      onCheckedChange={(checked) =>
-                                        handleToggleEventChannel(
-                                          category.id,
-                                          event.id,
-                                          "sms",
-                                          !!checked,
-                                        )
-                                      }
-                                    />
-                                    <span>Text (SMS)</span>
-                                  </label>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                    <div className="flex items-center gap-2 justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        aria-label="Reset to defaults"
+                        title="Reset to defaults"
+                        disabled={isAtDefaults(category.id)}
+                        onClick={() => handleReset(category.id)}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon"
+                        className="h-8 w-8 bg-blue-600 hover:bg-blue-700 text-white"
+                        aria-label="Save changes"
+                        title="Save changes"
+                        disabled={!hasChanges(category.id)}
+                        onClick={() => handleSave(category.id)}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
