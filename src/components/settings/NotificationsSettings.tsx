@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/custom-toast";
 
-type Channel = "email" | "inApp";
+type Channel = "email" | "inApp" | "sms";
 
 type DeliveryOption = "instant" | "delayed" | "end_of_day" | "weekly_digest";
 
@@ -37,14 +37,18 @@ type NotificationEvent = {
   label: string;
 };
 
+type EventChannelConfig = {
+  enabled: boolean;
+  channels: Record<Channel, boolean>;
+};
+
 type NotificationCategory = {
   id: NotificationCategoryKey;
   label: string;
   description: string;
   enabled: boolean;
   delivery: DeliveryOption;
-  channels: Record<Channel, boolean>;
-  events: Record<string, boolean>;
+  events: Record<string, EventChannelConfig>;
   eventDefinitions: NotificationEvent[];
 };
 
@@ -58,10 +62,6 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       "Control alerts for quotes, orders, and billing events related to new purchases.",
     enabled: true,
     delivery: "instant",
-    channels: {
-      email: true,
-      inApp: true,
-    },
     eventDefinitions: [
       { id: "quote_accepted", label: "Quote accepted" },
       { id: "order_submitted", label: "Order submitted to vendor" },
@@ -69,10 +69,22 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       { id: "invoice_ready", label: "Monthly invoice ready" },
     ],
     events: {
-      quote_accepted: true,
-      order_submitted: true,
-      order_completed: true,
-      invoice_ready: true,
+      quote_accepted: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      order_submitted: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      order_completed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      invoice_ready: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
     },
   },
   services: {
@@ -82,10 +94,6 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       "Stay informed about renewals, expirations, and subscription lifecycle changes.",
     enabled: true,
     delivery: "instant",
-    channels: {
-      email: true,
-      inApp: true,
-    },
     eventDefinitions: [
       { id: "renewal_upcoming", label: "Renewal upcoming" },
       { id: "renewal_completed", label: "Renewal completed" },
@@ -93,10 +101,22 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       { id: "subscription_canceled", label: "Subscription canceled" },
     ],
     events: {
-      renewal_upcoming: true,
-      renewal_completed: true,
-      subscription_suspended: true,
-      subscription_canceled: true,
+      renewal_upcoming: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      renewal_completed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      subscription_suspended: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: true },
+      },
+      subscription_canceled: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
     },
   },
   maintenance: {
@@ -106,10 +126,6 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       "Get notified about scheduled maintenance windows and real-time incident updates.",
     enabled: true,
     delivery: "instant",
-    channels: {
-      email: true,
-      inApp: true,
-    },
     eventDefinitions: [
       { id: "maintenance_scheduled", label: "Maintenance window scheduled" },
       { id: "maintenance_started", label: "Maintenance started" },
@@ -118,11 +134,26 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       { id: "incident_resolved", label: "Incident resolved" },
     ],
     events: {
-      maintenance_scheduled: true,
-      maintenance_started: true,
-      maintenance_completed: true,
-      incident_opened: true,
-      incident_resolved: true,
+      maintenance_scheduled: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      maintenance_started: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: true },
+      },
+      maintenance_completed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      incident_opened: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: true },
+      },
+      incident_resolved: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
     },
   },
   provisioning: {
@@ -132,10 +163,6 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       "Track provisioning pipelines, tenant health checks, and delegated admin changes.",
     enabled: true,
     delivery: "instant",
-    channels: {
-      email: true,
-      inApp: true,
-    },
     eventDefinitions: [
       { id: "tenant_created", label: "New tenant created" },
       { id: "tenant_updated", label: "Tenant configuration changed" },
@@ -144,11 +171,26 @@ const DEFAULT_NOTIFICATION_STATE: NotificationState = {
       { id: "delegated_admin_changed", label: "Delegated admin updated" },
     ],
     events: {
-      tenant_created: true,
-      tenant_updated: true,
-      provisioning_delayed: true,
-      provisioning_failed: true,
-      delegated_admin_changed: true,
+      tenant_created: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      tenant_updated: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
+      provisioning_delayed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: true },
+      },
+      provisioning_failed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: true },
+      },
+      delegated_admin_changed: {
+        enabled: true,
+        channels: { email: true, inApp: true, sms: false },
+      },
     },
   },
 };
@@ -173,17 +215,20 @@ export function NotificationsSettings() {
     // Compare delivery
     if (current.delivery !== saved.delivery) return true;
 
-    // Compare channels
-    if (
-      current.channels.email !== saved.channels.email ||
-      current.channels.inApp !== saved.channels.inApp
-    ) {
-      return true;
-    }
-
-    // Compare events
+    // Compare events and their channels
     for (const eventId of Object.keys(current.events)) {
-      if (current.events[eventId] !== saved.events[eventId]) {
+      const currentEvent = current.events[eventId];
+      const savedEvent = saved.events[eventId];
+
+      // Compare event enabled state
+      if (currentEvent.enabled !== savedEvent.enabled) return true;
+
+      // Compare channels
+      if (
+        currentEvent.channels.email !== savedEvent.channels.email ||
+        currentEvent.channels.inApp !== savedEvent.channels.inApp ||
+        currentEvent.channels.sms !== savedEvent.channels.sms
+      ) {
         return true;
       }
     }
@@ -202,17 +247,20 @@ export function NotificationsSettings() {
     // Compare delivery
     if (current.delivery !== defaults.delivery) return false;
 
-    // Compare channels
-    if (
-      current.channels.email !== defaults.channels.email ||
-      current.channels.inApp !== defaults.channels.inApp
-    ) {
-      return false;
-    }
-
-    // Compare events
+    // Compare events and their channels
     for (const eventId of Object.keys(current.events)) {
-      if (current.events[eventId] !== defaults.events[eventId]) {
+      const currentEvent = current.events[eventId];
+      const defaultEvent = defaults.events[eventId];
+
+      // Compare event enabled state
+      if (currentEvent.enabled !== defaultEvent.enabled) return false;
+
+      // Compare channels
+      if (
+        currentEvent.channels.email !== defaultEvent.channels.email ||
+        currentEvent.channels.inApp !== defaultEvent.channels.inApp ||
+        currentEvent.channels.sms !== defaultEvent.channels.sms
+      ) {
         return false;
       }
     }
@@ -243,23 +291,6 @@ export function NotificationsSettings() {
     }));
   };
 
-  const handleToggleChannel = (
-    id: NotificationCategoryKey,
-    channel: Channel,
-    value: boolean,
-  ) => {
-    setState((prev) => ({
-      ...prev,
-      [id]: {
-        ...prev[id],
-        channels: {
-          ...prev[id].channels,
-          [channel]: value,
-        },
-      },
-    }));
-  };
-
   const handleToggleEvent = (
     id: NotificationCategoryKey,
     eventId: string,
@@ -271,7 +302,34 @@ export function NotificationsSettings() {
         ...prev[id],
         events: {
           ...prev[id].events,
-          [eventId]: value,
+          [eventId]: {
+            ...prev[id].events[eventId],
+            enabled: value,
+          },
+        },
+      },
+    }));
+  };
+
+  const handleToggleEventChannel = (
+    id: NotificationCategoryKey,
+    eventId: string,
+    channel: Channel,
+    value: boolean,
+  ) => {
+    setState((prev) => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        events: {
+          ...prev[id].events,
+          [eventId]: {
+            ...prev[id].events[eventId],
+            channels: {
+              ...prev[id].events[eventId].channels,
+              [channel]: value,
+            },
+          },
         },
       },
     }));
@@ -413,71 +471,90 @@ export function NotificationsSettings() {
               </AccordionPrimitive.Header>
               <AccordionContent>
                 <div className="space-y-4 px-6">
-                  <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
-                        Events
-                      </p>
-                      <div className="space-y-2">
-                        {category.eventDefinitions.map((event) => (
-                          <label
-                            key={event.id}
-                            className="flex items-start gap-3 text-sm"
-                          >
-                            <Checkbox
-                              checked={category.events[event.id]}
+                  <div className="space-y-4">
+                    {category.eventDefinitions.map((event) => {
+                      const eventConfig = category.events[event.id];
+                      return (
+                        <div
+                          key={event.id}
+                          className="border-b border-border pb-4 last:border-b-0 last:pb-0"
+                        >
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <label className="flex items-start gap-3 text-sm">
+                              <Checkbox
+                                checked={eventConfig.enabled}
+                                disabled={!category.enabled}
+                                onCheckedChange={(checked) =>
+                                  handleToggleEvent(
+                                    category.id,
+                                    event.id,
+                                    !!checked,
+                                  )
+                                }
+                              />
+                              <span className="text-foreground font-medium">
+                                {event.label}
+                              </span>
+                            </label>
 
-                              disabled={!category.enabled}
-                              onCheckedChange={(checked) =>
-                                handleToggleEvent(
-                                  category.id,
-                                  event.id,
-                                  !!checked,
-                                )
-                              }
-                            />
-                            <span className="text-foreground">
-                              {event.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-[0.08em]">
-                        Channels
-                      </p>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-3 text-sm">
-                          <Checkbox
-                            checked={category.channels.email}
-                            disabled={!category.enabled}
-                            onCheckedChange={(checked) =>
-                              handleToggleChannel(
-                                category.id,
-                                "email",
-                                !!checked,
-                              )
-                            }
-                          />
-                          <span>Email</span>
-                        </label>
-                        <label className="flex items-center gap-3 text-sm">
-                          <Checkbox
-                            checked={category.channels.inApp}
-                            disabled={!category.enabled}
-                            onCheckedChange={(checked) =>
-                              handleToggleChannel(
-                                category.id,
-                                "inApp",
-                                !!checked,
-                              )
-                            }
-                          />
-                          <span>In-app</span>
-                        </label>
-                      </div>
-                    </div>
+                            {eventConfig.enabled && (
+                              <div className="md:ml-6">
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                  <span className="text-xs text-muted-foreground">
+                                    Channels:
+                                  </span>
+                                  <label className="flex items-center gap-2 whitespace-nowrap">
+                                    <Checkbox
+                                      checked={eventConfig.channels.email}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "email",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>Email</span>
+                                  </label>
+                                  <label className="flex items-center gap-2 whitespace-nowrap">
+                                    <Checkbox
+                                      checked={eventConfig.channels.inApp}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "inApp",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>In-app</span>
+                                  </label>
+                                  <label className="flex items-center gap-2 whitespace-nowrap">
+                                    <Checkbox
+                                      checked={eventConfig.channels.sms}
+                                      disabled={!category.enabled}
+                                      onCheckedChange={(checked) =>
+                                        handleToggleEventChannel(
+                                          category.id,
+                                          event.id,
+                                          "sms",
+                                          !!checked,
+                                        )
+                                      }
+                                    />
+                                    <span>Text (SMS)</span>
+                                  </label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </AccordionContent>
